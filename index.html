@@ -395,7 +395,9 @@ function activateUser(role){
   document.getElementById('appPage').classList.add('visible');
   document.getElementById('roleBadge').textContent=currentUser==='admin'?'ADMIN':currentUser==='manager'?'MANAGER':'SALESMAN';
   document.getElementById('hdrSub').textContent=currentUser==='admin'?'Admin Panel':currentUser==='manager'?'Manager View':'Rate Card';
-  setupTabs(); loadData();
+  setupTabs();
+  // Small delay to ensure DOM is ready before loading data
+  setTimeout(()=>{ loadData(); }, 100);
 }
 
 window.doLogin=function(){
@@ -422,29 +424,41 @@ window.doLogout=function(){
 };
 
 // Auto-login if previously logged in
-(function(){
+window.addEventListener('DOMContentLoaded', function(){
   const saved=localStorage.getItem('sjri_user');
   if(saved&&CREDS[saved]){
     activateUser(CREDS[saved].role);
   }
-})();
+});
 
 // ── TABS ──
 let activeTab='';
 function setupTabs(){
   const bar=document.getElementById('tabsBar');
+  // Hide all tabs first
+  ['admin','manager','salesman'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.style.display='none';
+  });
+
   if(currentUser==='admin'){
     bar.innerHTML=`<button class="tab-btn" onclick="switchTab('admin',this)">⚙️ Admin</button>
       <button class="tab-btn" onclick="switchTab('manager',this)">🏢 Manager</button>
       <button class="tab-btn" onclick="switchTab('salesman',this)">📋 Salesman</button>`;
-    switchTab('admin',bar.children[0]);
+    bar.children[0].classList.add('active');
+    document.getElementById('tab-admin').style.display='block';
+    activeTab='admin';
   } else if(currentUser==='manager'){
     bar.innerHTML=`<button class="tab-btn" onclick="switchTab('manager',this)">🏢 Rate Sheet</button>
       <button class="tab-btn" onclick="switchTab('salesman',this)">📋 Salesman</button>`;
-    switchTab('manager',bar.children[0]);
+    bar.children[0].classList.add('active');
+    document.getElementById('tab-manager').style.display='block';
+    activeTab='manager';
   } else {
     bar.innerHTML=`<button class="tab-btn" onclick="switchTab('salesman',this)">📋 Rate Card</button>`;
-    switchTab('salesman',bar.children[0]);
+    bar.children[0].classList.add('active');
+    document.getElementById('tab-salesman').style.display='block';
+    activeTab='salesman';
   }
 }
 window.switchTab=function(id,btn){
