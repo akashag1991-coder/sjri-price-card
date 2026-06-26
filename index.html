@@ -180,6 +180,9 @@ html,body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--tex
       <button class="btn-add-main" onclick="openAddModal()">➕ Add New Product</button>
     </div>
 
+    <!-- MANAGER -->
+    <div id="tab-manager" style="display:none;"></div>
+
     <!-- SALESMAN -->
     <div id="tab-salesman" style="display:none;">
       <div class="sec-hdr">
@@ -242,7 +245,8 @@ const db = getFirestore(app);
 
 const CREDS = {
   'brajesh.sharma':{pass:'brajesh@1411',role:'admin'},
-  'sales.man':{pass:'salesman@123',role:'salesman'}
+  'sales.man':{pass:'salesman@123',role:'salesman'},
+  'manager.sjri':{pass:'sjri@123',role:'manager'}
 };
 
 let currentUser=null, products={}, categoryMeta={}, rows={};
@@ -300,6 +304,65 @@ const DEFAULT_PRODUCTS={
   ]
 };
 
+// ── MANAGER PRODUCTS (read-only rate reference) ──
+const DEFAULT_MGR_PRODUCTS = [
+  // Coils
+  {id:'mg-c1', cat:'Coil', name:'JSW 80GSM 1.0mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c2', cat:'Coil', name:'JSW 80GSM 1.2mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c3', cat:'Coil', name:'JSW 80GSM 1.4mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c4', cat:'Coil', name:'JSW 80GSM 1.5mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c5', cat:'Coil', name:'Apollo 120GSM 1.0mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c6', cat:'Coil', name:'Apollo 120GSM 1.2mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c7', cat:'Coil', name:'Apollo 120GSM 1.4mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c8', cat:'Coil', name:'Kamdhenu 120GSM 1.0mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c9', cat:'Coil', name:'Kamdhenu 120GSM 1.2mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c10',cat:'Coil', name:'Kamdhenu 120GSM 1.4mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c11',cat:'Coil', name:'Kamdhenu 120GSM 1.5mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c12',cat:'Coil', name:'Tata 80GSM 1.2mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c13',cat:'Coil', name:'Nigata 350GSM 1.4mm', unit:'Kg', minRate:0, pct:0},
+  {id:'mg-c14',cat:'Coil', name:'Kamdhenu 275GSM 1.4mm', unit:'Kg', minRate:0, pct:0},
+  // Frames
+  {id:'mg-f1', cat:'Frame', name:'JSW 80GSM 1.0mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f2', cat:'Frame', name:'JSW 80GSM 1.2mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f3', cat:'Frame', name:'JSW 80GSM 1.4mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f4', cat:'Frame', name:'JSW 80GSM 1.5mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f5', cat:'Frame', name:'Apollo 120GSM 1.0mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f6', cat:'Frame', name:'Apollo 120GSM 1.2mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f7', cat:'Frame', name:'Apollo 120GSM 1.4mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f8', cat:'Frame', name:'Kamdhenu 120GSM 1.0mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f9', cat:'Frame', name:'Kamdhenu 120GSM 1.2mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f10',cat:'Frame', name:'Kamdhenu 120GSM 1.4mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f11',cat:'Frame', name:'Kamdhenu 120GSM 1.5mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f12',cat:'Frame', name:'Tata 80GSM 1.2mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f13',cat:'Frame', name:'Nigata 350GSM 1.4mm', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-f14',cat:'Frame', name:'Kamdhenu 275GSM 1.4mm', unit:'Pcs', minRate:0, pct:0},
+  // Louver
+  {id:'mg-l1', cat:'Louver', name:'Louver', unit:'Kg', minRate:0, pct:0},
+  // Kabje
+  {id:'mg-k1', cat:'Kabje', name:'Normal 5x12', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k2', cat:'Kabje', name:'Normal 3x12', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k3', cat:'Kabje', name:'Shining 5x12', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k4', cat:'Kabje', name:'Shining 3x12', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k5', cat:'Kabje', name:'Normal 5x14', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k6', cat:'Kabje', name:'Normal 3x16', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-k7', cat:'Kabje', name:'Normal 4x12', unit:'Pcs', minRate:0, pct:0},
+  // PVC
+  {id:'mg-p1', cat:'PVC', name:'Normal 5 inch', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-p2', cat:'PVC', name:'Normal 3 inch', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-p3', cat:'PVC', name:'Down PVC 5 inch', unit:'Pcs', minRate:0, pct:0},
+  {id:'mg-p4', cat:'PVC', name:'Down PVC 3 inch', unit:'Pcs', minRate:0, pct:0},
+  // Others
+  {id:'mg-o1', cat:'Paint',        name:'Paint',        unit:'Per Drum',    minRate:0, pct:0},
+  {id:'mg-o2', cat:'Ripit',        name:'Ripit',        unit:'Per Packet',  minRate:0, pct:0},
+  {id:'mg-o3', cat:'Machine',      name:'Machine',      unit:'Per Pcs',     minRate:0, pct:0},
+  {id:'mg-o4', cat:'Putty',        name:'Putty',        unit:'Per 5kg Bag', minRate:0, pct:0},
+  {id:'mg-o5', cat:'Lamination',   name:'Lamination',   unit:'Per Kg',      minRate:0, pct:0},
+  {id:'mg-o6', cat:'L Drop',       name:'L Drop',       unit:'Per Pcs',     minRate:0, pct:0},
+  {id:'mg-o7', cat:'Central Lock', name:'Central Lock', unit:'Per Pcs',     minRate:0, pct:0},
+];
+
+let mgrProducts = [];
+
 function getLabel(p,cat){
   if(cat==='frame') return `${p.brand} ${p.gsm}GSM ${p.thickness}mm`;
   if(cat==='steel') return `${p.grade} | ${p.size}`;
@@ -322,16 +385,21 @@ function toast(msg){
 }
 
 // ── LOGIN ──
+function activateUser(role){
+  currentUser=role;
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('appPage').classList.add('visible');
+  document.getElementById('roleBadge').textContent=currentUser==='admin'?'ADMIN':currentUser==='manager'?'MANAGER':'SALESMAN';
+  document.getElementById('hdrSub').textContent=currentUser==='admin'?'Admin Panel':currentUser==='manager'?'Manager View':'Rate Card';
+  setupTabs(); loadData();
+}
+
 window.doLogin=function(){
   const id=document.getElementById('loginId').value.trim();
   const pw=document.getElementById('loginPass').value;
   if(CREDS[id]&&CREDS[id].pass===pw){
-    currentUser=CREDS[id].role;
-    document.getElementById('loginPage').style.display='none';
-    document.getElementById('appPage').classList.add('visible');
-    document.getElementById('roleBadge').textContent=currentUser==='admin'?'ADMIN':'SALESMAN';
-    document.getElementById('hdrSub').textContent=currentUser==='admin'?'Admin Panel':'Rate Card';
-    setupTabs(); loadData();
+    localStorage.setItem('sjri_user', id);
+    activateUser(CREDS[id].role);
   } else {
     document.getElementById('loginError').textContent='Galat ID ya Password!';
   }
@@ -339,6 +407,7 @@ window.doLogin=function(){
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')window.doLogin();});
 
 window.doLogout=function(){
+  localStorage.removeItem('sjri_user');
   currentUser=null;
   unsubscribers.forEach(u=>u());unsubscribers=[];
   document.getElementById('loginPage').style.display='flex';
@@ -348,14 +417,27 @@ window.doLogout=function(){
   document.getElementById('loginError').textContent='';
 };
 
+// Auto-login if previously logged in
+(function(){
+  const saved=localStorage.getItem('sjri_user');
+  if(saved&&CREDS[saved]){
+    activateUser(CREDS[saved].role);
+  }
+})();
+
 // ── TABS ──
 let activeTab='';
 function setupTabs(){
   const bar=document.getElementById('tabsBar');
   if(currentUser==='admin'){
     bar.innerHTML=`<button class="tab-btn" onclick="switchTab('admin',this)">⚙️ Admin</button>
+      <button class="tab-btn" onclick="switchTab('manager',this)">🏢 Manager</button>
       <button class="tab-btn" onclick="switchTab('salesman',this)">📋 Salesman</button>`;
     switchTab('admin',bar.children[0]);
+  } else if(currentUser==='manager'){
+    bar.innerHTML=`<button class="tab-btn" onclick="switchTab('manager',this)">🏢 Rate Sheet</button>
+      <button class="tab-btn" onclick="switchTab('salesman',this)">📋 Salesman</button>`;
+    switchTab('manager',bar.children[0]);
   } else {
     bar.innerHTML=`<button class="tab-btn" onclick="switchTab('salesman',this)">📋 Rate Card</button>`;
     switchTab('salesman',bar.children[0]);
@@ -363,7 +445,7 @@ function setupTabs(){
 }
 window.switchTab=function(id,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  ['admin','salesman'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.style.display='none';});
+  ['admin','manager','salesman'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.style.display='none';});
   btn.classList.add('active');
   document.getElementById('tab-'+id).style.display='block';
   activeTab=id;
@@ -373,24 +455,43 @@ window.switchTab=function(id,btn){
 async function loadData(){
   try{
     const snap=await getDoc(doc(db,'priceCard','config'));
-    if(snap.exists()){const d=snap.data();products=d.products??DEFAULT_PRODUCTS;categoryMeta=d.categoryMeta??DEFAULT_META;}
-    else{products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));await saveFB();}
-  }catch{products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));}
+    if(snap.exists()){
+      const d=snap.data();
+      products=d.products??DEFAULT_PRODUCTS;
+      categoryMeta=d.categoryMeta??DEFAULT_META;
+      mgrProducts=d.mgrProducts??JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+    } else {
+      products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+      categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));
+      mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+      await saveFB();
+    }
+  }catch{
+    products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+    categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));
+    mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+  }
   initRows();
   const unsub=onSnapshot(doc(db,'priceCard','config'),snap=>{
-    if(snap.exists()){const d=snap.data();products=d.products??DEFAULT_PRODUCTS;categoryMeta=d.categoryMeta??DEFAULT_META;renderAll();}
+    if(snap.exists()){
+      const d=snap.data();
+      products=d.products??DEFAULT_PRODUCTS;
+      categoryMeta=d.categoryMeta??DEFAULT_META;
+      mgrProducts=d.mgrProducts??JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+      renderAll();
+    }
   });
   unsubscribers.push(unsub);
   renderAll();
 }
-async function saveFB(){await setDoc(doc(db,'priceCard','config'),{products,categoryMeta,updatedAt:new Date().toISOString()});}
+async function saveFB(){await setDoc(doc(db,'priceCard','config'),{products,categoryMeta,mgrProducts,updatedAt:new Date().toISOString()});}
 
 function initRows(){
   rows={};
   ordCats().forEach(cat=>{rows[cat]=[{rowId:cat+'-r0',productId:'',sellingRate:'',qty:1}];});
 }
 
-function renderAll(){renderAdmin();renderSalesman();computeMargin();}
+function renderAll(){renderAdmin();renderManager();renderSalesman();computeMargin();}
 
 // ── ADMIN ──
 function renderAdmin(){
@@ -417,6 +518,8 @@ function renderAdmin(){
     h+=`</div>`;
   });
   c.innerHTML=h;
+  // Add manager rates section below
+  c.innerHTML += renderAdminMgrSection();
 }
 window.updPct=async function(cat,i,v){
   products[cat][i].pct=parseFloat(v)||0;
@@ -543,6 +646,74 @@ function updateSummary(){
       <div class="sum-item"><div class="sum-label">Margin</div><div class="sum-val" style="color:${dc};">${ms}</div></div>
     </div>
     <div class="deal-msg" style="background:${any&&margin<15?'rgba(231,76,60,.15)':any&&margin>=20?'rgba(201,168,76,.15)':'rgba(39,174,96,.15)'};color:${dc};">${any?dm:''}</div>`;
+}
+
+// ── ADMIN: MANAGER PRODUCT RATES ──
+function renderAdminMgrSection(){
+  const cats=[...new Set(DEFAULT_MGR_PRODUCTS.map(p=>p.cat))];
+  let h=`<div class="a-card" style="margin-top:16px;">
+    <div class="a-card-hdr"><span>🏢 Manager Rate Sheet — Set Rates</span></div>`;
+  cats.forEach(cat=>{
+    const prods=mgrProducts.filter(p=>p.cat===cat);
+    h+=`<div style="background:var(--steel-mid);color:var(--gold-light);padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:.4px;">${cat}</div>
+      <div class="a-row-hdr"><div>Product</div><div>Unit</div><div>Min Rate</div><div>Margin%</div><div>Sell Rate</div></div>`;
+    prods.forEach((p,i)=>{
+      const globalIdx=mgrProducts.findIndex(x=>x.id===p.id);
+      const sell=p.minRate>0?Math.round(p.minRate*(1+(p.pct||0)/100)):0;
+      h+=`<div class="a-row" style="grid-template-columns:1fr 70px 72px 60px 60px;">
+        <div class="a-prod-name">${p.name}</div>
+        <div style="font-size:11px;color:var(--text-light);text-align:center;">${p.unit}</div>
+        <div><input class="pct-inp" type="number" min="0" step="0.5" value="${p.minRate||''}" placeholder="0"
+          onchange="updMgrRate(${globalIdx},'minRate',this.value)"></div>
+        <div><input class="pct-inp" type="number" min="0" step="0.5" value="${p.pct||''}" placeholder="0"
+          onchange="updMgrRate(${globalIdx},'pct',this.value)"></div>
+        <div class="a-sell">${sell>0?'₹'+sell:'—'}</div>
+      </div>`;
+    });
+  });
+  h+=`</div>`;
+  return h;
+}
+
+window.updMgrRate=async function(idx,field,val){
+  mgrProducts[idx][field]=parseFloat(val)||0;
+  await saveFB();
+  toast('✓ Rate updated');
+  renderAdmin();
+  renderManager();
+};
+
+// ── MANAGER PAGE ──
+function renderManager(){
+  const c=document.getElementById('tab-manager');
+  if(!c) return;
+  const cats=[...new Set(mgrProducts.map(p=>p.cat))];
+  let h=`<div style="padding-bottom:8px;">`;
+  cats.forEach(cat=>{
+    const prods=mgrProducts.filter(p=>p.cat===cat);
+    h+=`<div class="a-card" style="margin-bottom:10px;">
+      <div class="a-card-hdr"><span>${getCatIcon(cat)} ${cat}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 60px 52px 60px;gap:6px;padding:6px 12px 4px;font-size:9px;font-weight:600;color:var(--text-light);letter-spacing:.3px;text-transform:uppercase;border-bottom:1px solid var(--border);">
+        <div>Product</div><div style="text-align:center;">Unit</div><div style="text-align:center;">Min Rate</div><div style="text-align:center;">Sell Rate</div>
+      </div>`;
+    prods.forEach(p=>{
+      const sell=p.minRate>0?Math.round(p.minRate*(1+(p.pct||0)/100)):0;
+      h+=`<div style="display:grid;grid-template-columns:1fr 60px 52px 60px;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;">
+        <div style="font-weight:500;">${p.name}</div>
+        <div style="text-align:center;font-size:10px;color:var(--text-light);">${p.unit}</div>
+        <div style="text-align:center;font-weight:600;color:var(--text-mid);">${p.minRate>0?'₹'+p.minRate:'—'}</div>
+        <div style="text-align:center;font-weight:700;color:var(--success);">${sell>0?'₹'+sell:'—'}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  c.innerHTML=h;
+}
+
+function getCatIcon(cat){
+  const icons={Coil:'🔩',Frame:'🏗️',Louver:'🪟',Kabje:'🔧',PVC:'🔧',Paint:'🎨',Ripit:'📦',Machine:'⚙️',Putty:'🪣',Lamination:'✨','L Drop':'📐','Central Lock':'🔐'};
+  return icons[cat]||'📦';
 }
 
 window.resetAll=function(){
