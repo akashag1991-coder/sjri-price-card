@@ -181,6 +181,7 @@ html,body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--tex
         <div><div class="margin-display" id="globalMarginDisplay">—</div><div class="margin-sub">%</div></div>
       </div>
       <div id="adminTables"></div>
+      <div id="adminMgrSection"></div>
       <button class="btn-add-main" onclick="openAddModal()">➕ Add New Product</button>
     </div>
 
@@ -557,8 +558,9 @@ function renderAdmin(){
     h+=`</div>`;
   });
   c.innerHTML=h;
-  // Add manager rates section below
-  c.innerHTML += renderAdminMgrSection();
+  // Manager rates section in separate div
+  const mgrDiv=document.getElementById('adminMgrSection');
+  if(mgrDiv) mgrDiv.innerHTML=renderAdminMgrSection();
 }
 window.updPct=async function(cat,i,v){
   products[cat][i].pct=parseFloat(v)||0;
@@ -695,11 +697,11 @@ function renderAdminMgrSection(){
   cats.forEach(cat=>{
     const prods=mgrProducts.filter(p=>p.cat===cat);
     h+=`<div style="background:var(--steel-mid);color:var(--gold-light);padding:7px 14px;font-size:12px;font-weight:600;letter-spacing:.4px;">${cat}</div>
-      <div class="a-row-hdr"><div>Product</div><div>Unit</div><div>Min Rate</div><div>Margin%</div><div>Sell Rate</div></div>`;
+      <div class="a-row-hdr" style="grid-template-columns:1fr 70px 72px 60px 60px 32px;"><div>Product</div><div style="text-align:center;">Unit</div><div style="text-align:center;">Min Rate</div><div style="text-align:center;">Margin%</div><div style="text-align:center;">Sell Rate</div><div></div></div>`;
     prods.forEach((p,i)=>{
       const globalIdx=mgrProducts.findIndex(x=>x.id===p.id);
       const sell=p.minRate>0?Math.round(p.minRate*(1+(p.pct||0)/100)):0;
-      h+=`<div class="a-row" style="grid-template-columns:1fr 70px 72px 60px 60px;">
+      h+=`<div class="a-row" style="grid-template-columns:1fr 70px 72px 60px 60px 32px;">
         <div class="a-prod-name">${p.name}</div>
         <div style="font-size:11px;color:var(--text-light);text-align:center;">${p.unit}</div>
         <div><input class="pct-inp" type="number" min="0" step="0.5" value="${p.minRate||''}" placeholder="0"
@@ -707,6 +709,7 @@ function renderAdminMgrSection(){
         <div><input class="pct-inp" type="number" min="0" step="0.5" value="${p.pct||''}" placeholder="0"
           onchange="updMgrRate(${globalIdx},'pct',this.value)"></div>
         <div class="a-sell">${sell>0?'₹'+sell:'—'}</div>
+        <button class="btn-del" onclick="delMgrProd(${globalIdx})">🗑</button>
       </div>`;
     });
   });
@@ -718,6 +721,15 @@ window.updMgrRate=async function(idx,field,val){
   mgrProducts[idx][field]=parseFloat(val)||0;
   await saveFB();
   toast('✓ Rate updated');
+  renderAdmin();
+  renderManager();
+};
+
+window.delMgrProd=async function(idx){
+  if(!confirm('Delete this product?'))return;
+  mgrProducts.splice(idx,1);
+  await saveFB();
+  toast('Deleted');
   renderAdmin();
   renderManager();
 };
