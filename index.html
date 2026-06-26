@@ -49,6 +49,9 @@ html,body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--tex
 .hdr-right{display:flex;align-items:center;gap:8px;}
 .role-badge{background:rgba(201,168,76,.2);border:1px solid var(--gold);color:var(--gold-light);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
 .btn-logout{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:var(--white);padding:5px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;}
+.btn-refresh{background:rgba(201,168,76,.2);border:1px solid var(--gold);color:var(--gold-light);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .3s;}
+.btn-refresh.spinning{animation:spin .8s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
 /* ── TABS ── */
 .tabs{background:var(--white);border-bottom:2px solid var(--border);display:flex;flex-shrink:0;}
@@ -163,6 +166,7 @@ html,body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--tex
       </div>
     </div>
     <div class="hdr-right">
+      <button class="btn-refresh" onclick="refreshData()" id="refreshBtn" title="Latest rates load karo">🔄</button>
       <div class="role-badge" id="roleBadge"></div>
       <button class="btn-logout" onclick="doLogout()">Exit</button>
     </div>
@@ -213,7 +217,7 @@ html,body{font-family:'Inter',sans-serif;background:var(--cream);color:var(--tex
     </div>
     <div class="fg" id="newCatGroup" style="display:none;">
       <label>New Category Name</label>
-      <input type="text" id="newCatName" placeholder="Category naam">
+      <input type="text" id="newCatName" placeholder="Category name">
     </div>
     <div id="dynFields"></div>
     <div class="fg">
@@ -401,7 +405,7 @@ window.doLogin=function(){
     localStorage.setItem('sjri_user', id);
     activateUser(CREDS[id].role);
   } else {
-    document.getElementById('loginError').textContent='Galat ID ya Password!';
+    document.getElementById('loginError').textContent='Invalid ID or Password!';
   }
 };
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')window.doLogin();});
@@ -445,20 +449,31 @@ function setupTabs(){
 }
 window.switchTab=function(id,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  ['admin','manager','salesman'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.style.display='none';});
+  ['admin','manager','salesman'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.style.display='none';
+  });
   btn.classList.add('active');
-  document.getElementById('tab-'+id).style.display='block';
+  const tabEl=document.getElementById('tab-'+id);
+  if(tabEl) tabEl.style.display='block';
   activeTab=id;
+  // Re-render active tab content
+  if(id==='admin') renderAdmin();
+  else if(id==='manager') renderManager();
+  else if(id==='salesman') renderSalesman();
 };
 
 // ── FIREBASE ──
 async function loadData(){
+  const btn=document.getElementById('refreshBtn');
+  if(btn) btn.classList.add('spinning');
+
   try{
     const snap=await getDoc(doc(db,'priceCard','config'));
     if(snap.exists()){
       const d=snap.data();
-      products=d.products??DEFAULT_PRODUCTS;
-      categoryMeta=d.categoryMeta??DEFAULT_META;
+      products=d.products??JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+      categoryMeta=d.categoryMeta??JSON.parse(JSON.stringify(DEFAULT_META));
       mgrProducts=d.mgrProducts??JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
     } else {
       products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
@@ -466,24 +481,34 @@ async function loadData(){
       mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
       await saveFB();
     }
-  }catch{
-    products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
-    categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));
-    mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+    initRows();
+    renderAll();
+    toast('✅ Latest rates loaded!');
+
+    // Live sync
+    unsubscribers.forEach(u=>u());
+    unsubscribers=[];
+    const unsub=onSnapshot(doc(db,'priceCard','config'),snap=>{
+      if(snap.exists()){
+        const d=snap.data();
+        products=d.products??products;
+        categoryMeta=d.categoryMeta??categoryMeta;
+        mgrProducts=d.mgrProducts??mgrProducts;
+        renderAll();
+      }
+    });
+    unsubscribers.push(unsub);
+  } catch(e){
+    console.error('Firebase error:', e);
+    toast('❌ Check internet and try again!');
   }
-  initRows();
-  const unsub=onSnapshot(doc(db,'priceCard','config'),snap=>{
-    if(snap.exists()){
-      const d=snap.data();
-      products=d.products??DEFAULT_PRODUCTS;
-      categoryMeta=d.categoryMeta??DEFAULT_META;
-      mgrProducts=d.mgrProducts??JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
-      renderAll();
-    }
-  });
-  unsubscribers.push(unsub);
-  renderAll();
+
+  if(btn) btn.classList.remove('spinning');
 }
+
+window.refreshData = async function(){
+  await loadData();
+};
 async function saveFB(){await setDoc(doc(db,'priceCard','config'),{products,categoryMeta,mgrProducts,updatedAt:new Date().toISOString()});}
 
 function initRows(){
@@ -526,7 +551,7 @@ window.updPct=async function(cat,i,v){
   computeMargin();await saveFB();toast('✓ Margin updated');renderAdmin();
 };
 window.delProd=async function(cat,i){
-  if(!confirm('Delete?'))return;
+  if(!confirm('Delete this product?'))return;
   products[cat].splice(i,1);await saveFB();toast('Deleted');
 };
 function computeMargin(){
@@ -559,7 +584,7 @@ function renderSalesman(){
       const opts=(products[cat]||[]).map(pr=>`<option value="${pr.id}"${row.productId===pr.id?' selected':''}>${getLabel(pr,cat)}</option>`).join('');
       h+=`<div class="s-row" id="sr-${row.rowId}">
         <select class="s-select" onchange="onDrop('${cat}','${row.rowId}',this.value)">
-          <option value="">-- Chunein --</option>${opts}
+          <option value="">-- Select --</option>${opts}
         </select>
         <div class="s-base">${br!==null?'₹'+br:'—'}</div>
         <input class="s-sell-inp" type="number" id="sell-${row.rowId}" value="${sr!==''?sr:''}" placeholder="—" ${!p?'disabled':''} step="0.5" onchange="onSell('${cat}','${row.rowId}',this.value)">
@@ -585,7 +610,7 @@ function renderSalesman(){
   const margin=any?((ts-tb)/tb*100):0;
   const ms=any?margin.toFixed(1)+'%':'—';
   let dc=any&&margin<15?'var(--danger)':any&&margin>=20?'var(--gold)':'var(--success)';
-  let dm=any&&margin<15?'❌ Deal mat karo!':any&&margin>=20?'🌟 Bahut achha!':'✅ Deal ho sakti hai';
+  let dm=any&&margin<15?'❌ Do not deal! Margin too low.':any&&margin>=20?'🌟 Excellent margin!':'✅ Good to go!';
   h+=`<div class="summary">
     <div class="summary-grid">
       <div class="sum-item"><div class="sum-label">Base Total</div><div class="sum-val">₹${any?Math.round(tb):'—'}</div></div>
@@ -637,7 +662,7 @@ function updateSummary(){
   const margin=any?((ts-tb)/tb*100):0;
   const ms=any?margin.toFixed(1)+'%':'—';
   let dc=any&&margin<15?'var(--danger)':any&&margin>=20?'var(--gold)':'var(--success)';
-  let dm=any&&margin<15?'❌ Deal mat karo!':any&&margin>=20?'🌟 Bahut achha!':'✅ Deal ho sakti hai';
+  let dm=any&&margin<15?'❌ Do not deal! Margin too low.':any&&margin>=20?'🌟 Excellent margin!':'✅ Good to go!';
   const sel=document.querySelector('.summary');
   if(sel)sel.innerHTML=`
     <div class="summary-grid">
@@ -717,8 +742,8 @@ function getCatIcon(cat){
 }
 
 window.resetAll=function(){
-  if(!confirm('Next customer ke liye reset?'))return;
-  initRows();renderSalesman();toast('✅ Ready for next customer!');
+  if(!confirm('Reset for next customer?'))return;
+  initRows();renderSalesman();toast('✅ Reset! Ready for next customer.');
 };
 
 // ── ADD MODAL ──
@@ -746,46 +771,46 @@ window.onCatChange=function(){
     <div class="fg"><label>Size</label><input type="text" id="af_size" placeholder="5x12..."></div>`;
   else if(cat==='pvc')f=`<div class="fg"><label>Type</label><select id="af_type"><option>Normal</option><option>Down PVC</option></select></div>
     <div class="fg"><label>Size</label><input type="text" id="af_size" placeholder="5 inch..."></div>`;
-  else f=`<div class="fg"><label>Product Name</label><input type="text" id="af_name" placeholder="Naam daalen"></div>`;
+  else f=`<div class="fg"><label>Product Name</label><input type="text" id="af_name" placeholder="Enter name"></div>`;
   document.getElementById('dynFields').innerHTML=f;
 };
 window.saveProduct=async function(){
   let cat=document.getElementById('addCategory').value;
-  if(!cat){toast('Category chunein!');return;}
+  if(!cat){toast('Select a category!');return;}
   const br=parseFloat(document.getElementById('addBaseRate').value);
-  if(isNaN(br)||br<=0){toast('Base rate daalen!');return;}
+  if(isNaN(br)||br<=0){toast('Enter base rate!');return;}
   let np={baseRate:br,pct:15},ck=cat;
   if(cat==='new'){
     const nm=document.getElementById('newCatName').value.trim();
-    if(!nm){toast('Category naam daalen!');return;}
+    if(!nm){toast('Enter category name!');return;}
     ck=nm.toLowerCase().replace(/\s+/g,'_');
     categoryMeta[ck]={label:'📦 '+nm};
     np.name=document.getElementById('af_name')?.value?.trim()||'Product';
     np.id=ck+'-'+Date.now();
   }else if(cat==='frame'){
     const b=document.getElementById('af_brand')?.value?.trim(),g=document.getElementById('af_gsm')?.value,t=document.getElementById('af_th')?.value?.trim();
-    if(!b||!g||!t){toast('Saari details bharo!');return;}
+    if(!b||!g||!t){toast('Please fill all details!');return;}
     np={...np,brand:b,gsm:parseFloat(g),thickness:t,id:'f-'+Date.now()};
   }else if(cat==='steel'){
     const g=document.getElementById('af_grade')?.value?.trim(),s=document.getElementById('af_size')?.value?.trim();
-    if(!g||!s){toast('Grade aur Size daalen!');return;}
+    if(!g||!s){toast('Enter Grade and Size!');return;}
     np={...np,grade:g,size:s,id:'s-'+Date.now()};
   }else if(cat==='kabje'){
     const t=document.getElementById('af_type')?.value,s=document.getElementById('af_size')?.value?.trim();
-    if(!s){toast('Size daalen!');return;}
+    if(!s){toast('Enter Size!');return;}
     np={...np,type:t,size:s,id:'k-'+Date.now()};
   }else if(cat==='pvc'){
     const t=document.getElementById('af_type')?.value,s=document.getElementById('af_size')?.value?.trim();
-    if(!s){toast('Size daalen!');return;}
+    if(!s){toast('Enter Size!');return;}
     np={...np,type:t,size:s,id:'p-'+Date.now()};
   }else{
     const n=document.getElementById('af_name')?.value?.trim();
-    if(!n){toast('Naam daalen!');return;}
+    if(!n){toast('Enter Name!');return;}
     np={...np,name:n,id:cat+'-'+Date.now()};
   }
   if(!products[ck])products[ck]=[];
   products[ck].push(np);
-  await saveFB();closeAddModal();toast('✅ Product add ho gaya!');
+  await saveFB();closeAddModal();toast('✅ Product added successfully!');
 };
 document.getElementById('addModal').addEventListener('click',function(e){if(e.target===this)closeAddModal();});
 </script>
