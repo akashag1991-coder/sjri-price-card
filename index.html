@@ -241,6 +241,11 @@ button{cursor:pointer;}
 
     <div class="page" id="page-adminmgr">
       <div class="page-head"><div class="page-title">Manager <span class="accent">Rates</span></div></div>
+      <div class="hero">
+        <div class="hero-label">Manager Global Margin</div>
+        <div class="hero-value" id="mgrGlobalMargin">—<span>%</span></div>
+        <div class="hero-foot">Weighted average across manager products</div>
+      </div>
       <div id="adminMgr"></div>
       <button class="add-main" onclick="openAddModal('mgr')">+ Add New Product</button>
     </div>
@@ -626,6 +631,16 @@ function renderAdminMgr(){
     h+=`</div></div>`;
   });
   c.innerHTML=h;
+  computeMgrMargin();
+}
+function computeMgrMargin(){
+  let tb=0,ts=0;
+  mgrProducts.forEach(p=>{
+    if(p.minRate>0){tb+=p.minRate;ts+=Math.round(p.minRate*(1+(p.pct||0)/100));}
+  });
+  const m=tb>0?((ts-tb)/tb*100):0;
+  const el=document.getElementById('mgrGlobalMargin');
+  if(el)el.innerHTML=m.toFixed(1)+'<span>%</span>';
 }
 window.updMgrRate=async function(idx,field,val){mgrProducts[idx][field]=parseFloat(val)||0;await saveFB();renderAdminMgr();};
 window.delMgrProd=async function(idx){if(!confirm('Delete this product?'))return;mgrProducts.splice(idx,1);await saveFB();toast('Deleted');renderAdminMgr();};
