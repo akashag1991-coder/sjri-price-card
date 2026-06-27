@@ -223,7 +223,6 @@ button{cursor:pointer;}
       </div>
     </div>
     <div class="tb-right">
-      <button class="icon-btn" id="refreshBtn" onclick="refreshData()" title="Refresh">⟳</button>
       <button class="icon-btn" onclick="doLogout()" title="Exit">⏻</button>
     </div>
   </div>
@@ -391,6 +390,14 @@ const DEFAULT_MGR_PRODUCTS=[
   {id:'mg-l4',cat:'Louver',name:'Tata 80 GSM',unit:'Kg',minRate:0,pct:0},
   {id:'mg-l5',cat:'Louver',name:'Nigata 350 GSM',unit:'Kg',minRate:0,pct:0},
   {id:'mg-l6',cat:'Louver',name:'Kamdhenu 275 GSM',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st1',cat:'Steel',name:'304 1/2 x 1',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st2',cat:'Steel',name:'304 3/4 x 3/4',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st3',cat:'Steel',name:'304 5 Soot',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st4',cat:'Steel',name:'304 1/2 x 3/4',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st5',cat:'Steel',name:'202 1/2 x 1',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st6',cat:'Steel',name:'202 3/4 x 3/4',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st7',cat:'Steel',name:'202 5 Soot',unit:'Kg',minRate:0,pct:0},
+  {id:'mg-st8',cat:'Steel',name:'202 1/2 x 3/4',unit:'Kg',minRate:0,pct:0},
   {id:'mg-k1',cat:'Kabje',name:'Normal 5x12',unit:'Pcs',minRate:0,pct:0},
   {id:'mg-k2',cat:'Kabje',name:'Normal 3x12',unit:'Pcs',minRate:0,pct:0},
   {id:'mg-k3',cat:'Kabje',name:'Shining 5x12',unit:'Pcs',minRate:0,pct:0},
@@ -561,7 +568,7 @@ function renderAdmin(){
   if(mgrDiv)mgrDiv.innerHTML=renderAdminMgrSection();
   computeMargin();
 }
-window.updPct=async function(cat,i,v){products[cat][i].pct=parseFloat(v)||0;computeMargin();await saveFB();toast('✓ Margin updated');renderAdmin();};
+window.updPct=async function(cat,i,v){products[cat][i].pct=parseFloat(v)||0;computeMargin();await saveFB();renderAdmin();};
 window.delProd=async function(cat,i){if(!confirm('Delete this product?'))return;products[cat].splice(i,1);await saveFB();toast('Deleted');renderAdmin();};
 function computeMargin(){
   let tb=0,ts=0;
@@ -599,12 +606,12 @@ function renderAdminMgrSection(){
   h+=`</div></div>`;
   return h;
 }
-window.updMgrRate=async function(idx,field,val){mgrProducts[idx][field]=parseFloat(val)||0;await saveFB();toast('✓ Rate updated');renderAdmin();};
+window.updMgrRate=async function(idx,field,val){mgrProducts[idx][field]=parseFloat(val)||0;await saveFB();renderAdmin();};
 window.delMgrProd=async function(idx){if(!confirm('Delete this product?'))return;mgrProducts.splice(idx,1);await saveFB();toast('Deleted');renderAdmin();};
 window.resetMgrProducts=async function(){if(!confirm('Reset Manager Rate Sheet to defaults?'))return;mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));await saveFB();toast('✅ Rate Sheet reset');renderAdmin();};
 
 // MANAGER PAGE
-function getCatIcon(cat){const i={Coil:'🪙',Frame:'🏗️',Louver:'🪟',Kabje:'🔧',PVC:'🧵',Paint:'🎨',Ripit:'📦',Machine:'⚙️',Putty:'🪣',Lamination:'✨','L Drop':'📐','Central Lock':'🔐'};return i[cat]||'📦';}
+function getCatIcon(cat){const i={Coil:'🪙',Frame:'🏗️',Steel:'🔩',Louver:'🪟',Kabje:'🔧',PVC:'🧵',Paint:'🎨',Ripit:'📦',Machine:'⚙️',Putty:'🪣',Lamination:'✨','L Drop':'📐','Central Lock':'🔐'};return i[cat]||'📦';}
 function renderManager(){
   const c=document.getElementById('managerTables');
   if(!c)return;
