@@ -228,16 +228,21 @@ button{cursor:pointer;}
   </div>
 
   <div class="scroll">
-    <div class="page" id="page-admin">
-      <div class="page-head"><div class="page-title">Admin <span class="accent">Panel</span></div></div>
+    <div class="page" id="page-adminsales">
+      <div class="page-head"><div class="page-title">Salesmen <span class="accent">Rates</span></div></div>
       <div class="hero">
         <div class="hero-label">Global Profit Margin</div>
         <div class="hero-value" id="globalMargin">—<span>%</span></div>
         <div class="hero-foot">Weighted average across all products</div>
       </div>
       <div id="adminTables"></div>
+      <button class="add-main" onclick="openAddModal('sales')">+ Add New Product</button>
+    </div>
+
+    <div class="page" id="page-adminmgr">
+      <div class="page-head"><div class="page-title">Manager <span class="accent">Rates</span></div></div>
       <div id="adminMgr"></div>
-      <button class="add-main" onclick="openAddModal()">+ Add New Product</button>
+      <button class="add-main" onclick="openAddModal('mgr')">+ Add New Product</button>
     </div>
 
     <div class="page" id="page-manager">
@@ -279,6 +284,10 @@ button{cursor:pointer;}
       <input type="text" id="newCatName" placeholder="Category name">
     </div>
     <div id="dynFields"></div>
+    <div class="fg" id="unitGroup" style="display:none;">
+      <label>Unit</label>
+      <input type="text" id="addUnit" placeholder="Kg / Pcs / Per Drum...">
+    </div>
     <div class="fg">
       <label>Base Rate (₹)</label>
       <input type="number" id="addBaseRate" placeholder="0" min="0" step="0.5">
@@ -474,9 +483,9 @@ window.addEventListener('DOMContentLoaded',function(){
 function buildNav(){
   const nav=document.getElementById('bottomNav');
   let items=[];
-  if(currentUser==='admin') items=[['admin','⚙️','Admin'],['manager','📊','Manager'],['salesman','🧾','Salesman']];
-  else if(currentUser==='manager') items=[['manager','📊','Rates'],['salesman','🧾','Salesman']];
-  else items=[['salesman','🧾','Rate Card']];
+  if(currentUser==='admin') items=[['adminsales','🧾','Salesmen'],['adminmgr','📊','Managers'],['manager','👁️','Mgr View'],['salesman','🛒','Sales View']];
+  else if(currentUser==='manager') items=[['manager','📊','Rate Sheet']];
+  else items=[['salesman','🛒','Rate Card']];
   nav.innerHTML=items.map(([id,ico,lbl])=>`<button class="nav-item" id="nav-${id}" onclick="switchTab('${id}')"><span class="nav-ico">${ico}</span><span class="nav-lbl">${lbl}</span></button>`).join('');
   switchTab(items[0][0]);
 }
@@ -487,7 +496,8 @@ window.switchTab=function(id){
   const pg=document.getElementById('page-'+id);if(pg)pg.classList.add('active');
   activeTab=id;
   document.querySelector('.scroll').scrollTop=0;
-  if(id==='admin')renderAdmin();
+  if(id==='adminsales')renderAdminSales();
+  else if(id==='adminmgr')renderAdminMgr();
   else if(id==='manager')renderManager();
   else if(id==='salesman')renderSalesman();
 };
@@ -503,13 +513,19 @@ async function loadData(){
       products=d.products??JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
       categoryMeta=d.categoryMeta??JSON.parse(JSON.stringify(DEFAULT_META));
       mgrProducts=d.mgrProducts??JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
+      // Add any new default manager products that don't exist yet (keeps saved rates safe)
+      let added=false;
+      DEFAULT_MGR_PRODUCTS.forEach(dp=>{
+        if(!mgrProducts.some(p=>p.id===dp.id)){mgrProducts.push(JSON.parse(JSON.stringify(dp)));added=true;}
+      });
+      if(added) await saveFB();
     }else{
       products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
       categoryMeta=JSON.parse(JSON.stringify(DEFAULT_META));
       mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));
       await saveFB();
     }
-    initRows();renderAll();toast('✅ Latest rates loaded');
+    initRows();renderAll();
     unsubscribers.forEach(u=>u());unsubscribers=[];
     const unsub=onSnapshot(doc(db,'priceCard','config'),snap=>{
       if(snap.exists()){
@@ -517,27 +533,32 @@ async function loadData(){
         products=d.products??products;
         categoryMeta=d.categoryMeta??categoryMeta;
         mgrProducts=d.mgrProducts??mgrProducts;
-        renderAll();
+        if(activeTab==='salesman'){
+          const dealStarted=Object.values(rows).some(arr=>arr.some(r=>r.productId));
+          if(!dealStarted) renderSalesman();
+        } else {
+          renderAll();
+        }
       }
     });
     unsubscribers.push(unsub);
   }catch(e){console.error(e);toast('❌ Check internet and try again');}
   if(btn)btn.classList.remove('spin');
 }
-window.refreshData=async function(){await loadData();};
 async function saveFB(){await setDoc(doc(db,'priceCard','config'),{products,categoryMeta,mgrProducts,updatedAt:new Date().toISOString()});}
 
 function initRows(){rows={};ordCats().forEach(cat=>{rows[cat]=[{rowId:cat+'-r0',productId:'',sellingRate:'',qty:1}];});}
 
 function renderAll(){
-  if(activeTab==='admin')renderAdmin();
+  if(activeTab==='adminsales')renderAdminSales();
+  else if(activeTab==='adminmgr')renderAdminMgr();
   else if(activeTab==='manager')renderManager();
   else if(activeTab==='salesman')renderSalesman();
   computeMargin();
 }
 
-// ADMIN
-function renderAdmin(){
+// ADMIN — SALESMEN RATES
+function renderAdminSales(){
   const c=document.getElementById('adminTables');
   if(!c)return;
   let h='';
@@ -547,7 +568,7 @@ function renderAdmin(){
     h+=`<div class="card">
       <div class="card-head">
         <h3><span class="cat-dot" style="background:${col}"></span>${meta.label}</h3>
-        <button class="mini-btn mini-add" onclick="openAddModal('${cat}')">+ Add</button>
+        <button class="mini-btn mini-add" onclick="openAddModal('sales','${cat}')">+ Add</button>
       </div>
       <div class="card-body">
         <div class="prow-h"><div>Product</div><div style="text-align:center">Base</div><div style="text-align:center">Margin%</div><div style="text-align:center">Sell</div><div></div></div>`;
@@ -564,12 +585,10 @@ function renderAdmin(){
     h+=`</div></div>`;
   });
   c.innerHTML=h;
-  const mgrDiv=document.getElementById('adminMgr');
-  if(mgrDiv)mgrDiv.innerHTML=renderAdminMgrSection();
   computeMargin();
 }
-window.updPct=async function(cat,i,v){products[cat][i].pct=parseFloat(v)||0;computeMargin();await saveFB();renderAdmin();};
-window.delProd=async function(cat,i){if(!confirm('Delete this product?'))return;products[cat].splice(i,1);await saveFB();toast('Deleted');renderAdmin();};
+window.updPct=async function(cat,i,v){products[cat][i].pct=parseFloat(v)||0;computeMargin();await saveFB();renderAdminSales();};
+window.delProd=async function(cat,i){if(!confirm('Delete this product?'))return;products[cat].splice(i,1);await saveFB();toast('Deleted');renderAdminSales();};
 function computeMargin(){
   let tb=0,ts=0;
   for(const cat in products)(products[cat]||[]).forEach(p=>{tb+=p.baseRate;ts+=Math.round(p.baseRate*(1+(p.pct||0)/100));});
@@ -578,19 +597,21 @@ function computeMargin(){
   if(el)el.innerHTML=m.toFixed(1)+'<span>%</span>';
 }
 
-// ADMIN MANAGER SECTION
-function renderAdminMgrSection(){
+// ADMIN — MANAGER RATES (separate page)
+function renderAdminMgr(){
+  const c=document.getElementById('adminMgr');
+  if(!c)return;
   const cats=[...new Set(mgrProducts.map(p=>p.cat))];
-  let h=`<div class="card">
-    <div class="card-head">
-      <h3><span class="cat-dot" style="background:var(--gold)"></span>Manager Rate Sheet</h3>
-      <button class="mini-btn mini-reset" onclick="resetMgrProducts()">↺ Reset</button>
-    </div>
-    <div class="card-body">`;
+  let h='';
   cats.forEach(cat=>{
     const prods=mgrProducts.filter(p=>p.cat===cat);
-    h+=`<div class="subcat">${cat}</div>
-      <div class="mrow-h" style="grid-template-columns:1fr 50px 56px 56px 28px"><div>Product</div><div style="text-align:center">Min</div><div style="text-align:center">Mrg%</div><div style="text-align:center">Sell</div><div></div></div>`;
+    h+=`<div class="card">
+      <div class="card-head">
+        <h3>${getCatIcon(cat)} ${cat}</h3>
+        <button class="mini-btn mini-add" onclick="openAddModal('mgr','${cat}')">+ Add</button>
+      </div>
+      <div class="card-body">
+        <div class="mrow-h" style="grid-template-columns:1fr 50px 56px 56px 28px"><div>Product</div><div style="text-align:center">Min</div><div style="text-align:center">Mrg%</div><div style="text-align:center">Sell</div><div></div></div>`;
     prods.forEach(p=>{
       const gi=mgrProducts.findIndex(x=>x.id===p.id);
       const sell=p.minRate>0?Math.round(p.minRate*(1+(p.pct||0)/100)):0;
@@ -602,13 +623,12 @@ function renderAdminMgrSection(){
         <button class="del-btn" onclick="delMgrProd(${gi})">🗑</button>
       </div>`;
     });
+    h+=`</div></div>`;
   });
-  h+=`</div></div>`;
-  return h;
+  c.innerHTML=h;
 }
-window.updMgrRate=async function(idx,field,val){mgrProducts[idx][field]=parseFloat(val)||0;await saveFB();renderAdmin();};
-window.delMgrProd=async function(idx){if(!confirm('Delete this product?'))return;mgrProducts.splice(idx,1);await saveFB();toast('Deleted');renderAdmin();};
-window.resetMgrProducts=async function(){if(!confirm('Reset Manager Rate Sheet to defaults?'))return;mgrProducts=JSON.parse(JSON.stringify(DEFAULT_MGR_PRODUCTS));await saveFB();toast('✅ Rate Sheet reset');renderAdmin();};
+window.updMgrRate=async function(idx,field,val){mgrProducts[idx][field]=parseFloat(val)||0;await saveFB();renderAdminMgr();};
+window.delMgrProd=async function(idx){if(!confirm('Delete this product?'))return;mgrProducts.splice(idx,1);await saveFB();toast('Deleted');renderAdminMgr();};
 
 // MANAGER PAGE
 function getCatIcon(cat){const i={Coil:'🪙',Frame:'🏗️',Steel:'🔩',Louver:'🪟',Kabje:'🔧',PVC:'🧵',Paint:'🎨',Ripit:'📦',Machine:'⚙️',Putty:'🪣',Lamination:'✨','L Drop':'📐','Central Lock':'🔐'};return i[cat]||'📦';}
@@ -721,11 +741,46 @@ function updateSummary(){
 window.resetAll=function(){if(!confirm('Start fresh for next customer?'))return;initRows();renderSalesman();toast('✅ Ready for next customer');};
 
 // ADD MODAL
-window.openAddModal=function(cat=''){document.getElementById('addModal').classList.add('open');if(cat){document.getElementById('addCategory').value=cat;onCatChange();}};
-window.closeAddModal=function(){document.getElementById('addModal').classList.remove('open');document.getElementById('addCategory').value='';document.getElementById('newCatGroup').style.display='none';document.getElementById('dynFields').innerHTML='';document.getElementById('addBaseRate').value='';};
+let addMode='sales'; // 'sales' or 'mgr'
+window.openAddModal=function(mode='sales',cat=''){
+  addMode=mode;
+  document.getElementById('addModal').classList.add('open');
+  // Build category dropdown based on mode
+  const sel=document.getElementById('addCategory');
+  if(mode==='mgr'){
+    const mgrCats=[...new Set(mgrProducts.map(p=>p.cat))];
+    sel.innerHTML='<option value="">Select category</option>'+mgrCats.map(c=>`<option value="${c}">${c}</option>`).join('')+'<option value="new">+ New Category</option>';
+  }else{
+    sel.innerHTML=`<option value="">Select category</option>
+      <option value="frame">Frame</option>
+      <option value="steel">Steel</option>
+      <option value="kabje">Kabje</option>
+      <option value="pvc">PVC</option>
+      <option value="other">Other Products</option>
+      <option value="new">+ New Category</option>`;
+  }
+  if(cat){sel.value=cat;onCatChange();}
+};
+window.closeAddModal=function(){
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('addCategory').value='';
+  document.getElementById('newCatGroup').style.display='none';
+  document.getElementById('unitGroup').style.display='none';
+  document.getElementById('dynFields').innerHTML='';
+  document.getElementById('addBaseRate').value='';
+  document.getElementById('addUnit').value='';
+};
 window.onCatChange=function(){
   const cat=document.getElementById('addCategory').value;
   document.getElementById('newCatGroup').style.display=cat==='new'?'block':'none';
+  // Manager mode: simple name + unit for everything
+  if(addMode==='mgr'){
+    document.getElementById('unitGroup').style.display='block';
+    document.getElementById('dynFields').innerHTML=`<div class="fg"><label>Product Name</label><input type="text" id="af_name" placeholder="Enter product name"></div>`;
+    return;
+  }
+  // Sales mode: structured fields, no unit
+  document.getElementById('unitGroup').style.display='none';
   let f='';
   if(cat==='frame')f=`<div class="fg"><label>Brand</label><input type="text" id="af_brand" placeholder="JSW / Apollo"></div><div class="fg"><label>GSM</label><input type="number" id="af_gsm" placeholder="80 / 120"></div><div class="fg"><label>Thickness (mm)</label><input type="text" id="af_th" placeholder="1.0 / 1.2"></div>`;
   else if(cat==='steel')f=`<div class="fg"><label>Grade</label><input type="text" id="af_grade" placeholder="304 / 202"></div><div class="fg"><label>Size</label><input type="text" id="af_size" placeholder="1/2 x 1"></div>`;
@@ -739,6 +794,23 @@ window.saveProduct=async function(){
   if(!cat){toast('Select a category');return;}
   const br=parseFloat(document.getElementById('addBaseRate').value);
   if(isNaN(br)||br<=0){toast('Enter base rate');return;}
+
+  // ===== MANAGER MODE =====
+  if(addMode==='mgr'){
+    let catName=cat;
+    if(cat==='new'){
+      catName=document.getElementById('newCatName').value.trim();
+      if(!catName){toast('Enter category name');return;}
+    }
+    const nm=document.getElementById('af_name')?.value?.trim();
+    if(!nm){toast('Enter product name');return;}
+    const unit=document.getElementById('addUnit').value.trim()||'Pcs';
+    mgrProducts.push({id:'mg-new-'+Date.now(),cat:catName,name:nm,unit:unit,minRate:br,pct:0});
+    await saveFB();closeAddModal();toast('✅ Product added');renderAdminMgr();
+    return;
+  }
+
+  // ===== SALES MODE =====
   let np={baseRate:br,pct:15},ck=cat;
   if(cat==='new'){
     const nm=document.getElementById('newCatName').value.trim();
@@ -769,7 +841,7 @@ window.saveProduct=async function(){
   }
   if(!products[ck])products[ck]=[];
   products[ck].push(np);
-  await saveFB();closeAddModal();toast('✅ Product added');renderAdmin();
+  await saveFB();closeAddModal();toast('✅ Product added');renderAdminSales();
 };
 document.getElementById('addModal').addEventListener('click',function(e){if(e.target===this)closeAddModal();});
 </script>
