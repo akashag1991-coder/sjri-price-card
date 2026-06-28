@@ -158,6 +158,26 @@ button{cursor:pointer;}
 .m-min{text-align:center;font-size:12.5px;font-weight:600;color:var(--txt-mid);}
 .m-sell{text-align:center;font-size:13px;font-weight:700;color:var(--green);}
 
+
+/* SALESMAN BLOCK (2-line) */
+.sblock{padding:12px 14px;border-bottom:1px solid var(--line);}
+.sblock:last-of-type{border-bottom:none;}
+.sblock-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.s-select-full{flex:1;width:100%;padding:10px 12px;background:#fff;border:1.5px solid var(--line2);border-radius:10px;font-size:14px;font-weight:500;color:var(--txt);outline:none;transition:all .2s;}
+.s-select-full:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);}
+.sblock-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+.sb-cell{display:flex;flex-direction:column;gap:4px;}
+.sb-lbl{font-size:9.5px;font-weight:700;color:var(--txt-faint);letter-spacing:0.3px;text-transform:uppercase;text-align:center;}
+.sblock .s-base{text-align:center;font-size:13px;font-weight:600;color:var(--txt-mid);background:var(--bg);border-radius:9px;padding:9px 4px;}
+.sblock .s-sell{width:100%;padding:9px 4px;background:var(--green-soft);border:1.5px solid #bce8d3;border-radius:9px;font-size:14px;font-weight:700;text-align:center;color:var(--green);outline:none;transition:all .2s;}
+.sblock .s-sell:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft);}
+.sblock .s-sell:disabled{background:var(--bg);color:var(--txt-faint);border-color:var(--line2);}
+.sblock .s-qty{width:100%;padding:9px 4px;background:#fff;border:1.5px solid var(--line2);border-radius:9px;font-size:14px;font-weight:600;text-align:center;color:var(--txt);outline:none;transition:all .2s;}
+.sblock .s-qty:focus{border-color:var(--blue);}
+.sblock .s-qty:disabled{background:var(--bg);color:var(--txt-faint);}
+.sblock .s-tot{text-align:center;font-size:14px;font-weight:700;color:var(--gold);padding:9px 2px;}
+.s-rem{flex-shrink:0;width:38px;height:38px;background:var(--red-soft);border:1px solid #f5c2c4;color:var(--red);font-size:18px;display:flex;align-items:center;justify-content:center;border-radius:10px;}
+
 /* SUMMARY */
 .summary{position:sticky;bottom:12px;margin-top:16px;background:#fff;border:1px solid var(--line2);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--sh-md);}
 .sum-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
@@ -684,26 +704,29 @@ function renderSalesman(){
     const col=catColor(cat);
     h+=`<div class="card">
       <div class="card-head"><h3><span class="cat-dot" style="background:${col}"></span>${meta.label}</h3></div>
-      <div class="card-body">
-        <div class="srow-h"><div>Product</div><div style="text-align:center">Base</div><div style="text-align:center">Sell</div><div style="text-align:center">Qty</div><div style="text-align:center">Total</div><div></div></div>`;
+      <div class="card-body">`;
     rows[cat].forEach((row,idx)=>{
       const p=row.productId?findP(cat,row.productId):null;
       const br=p?p.baseRate:null;
       const sr=row.sellingRate!==''?row.sellingRate:(p?defSell(p):'');
       const qty=row.qty||1;
       const tot=sr!==''?(parseFloat(sr)*qty).toFixed(2):'';
-      const action=idx===0&&CAT_MULTI.includes(cat)?`<button class="s-add" onclick="addRow('${cat}')">+</button>`:idx>0?`<button class="s-rem" onclick="remRow('${cat}','${row.rowId}')">×</button>`:'<div></div>';
+      const canRem=idx>0;
       const opts=(products[cat]||[]).map(pr=>`<option value="${pr.id}"${row.productId===pr.id?' selected':''}>${getLabel(pr,cat)}</option>`).join('');
-      h+=`<div class="srow">
-        <select class="s-select" onchange="onDrop('${cat}','${row.rowId}',this.value)"><option value="">Select</option>${opts}</select>
-        <div class="s-base">${br!==null?'₹'+br:'—'}</div>
-        <input class="s-sell" type="number" id="sell-${row.rowId}" value="${sr!==''?sr:''}" placeholder="—" ${!p?'disabled':''} step="0.5" onchange="onSell('${cat}','${row.rowId}',this.value)">
-        <input class="s-qty" type="number" id="qty-${row.rowId}" value="${qty}" min="0.01" step="0.01" ${!p?'disabled':''} onchange="onQty('${cat}','${row.rowId}',this.value)">
-        <div class="s-tot" id="tot-${row.rowId}">${tot!==''?'₹'+tot:'—'}</div>
-        <div style="display:flex;align-items:center;justify-content:center">${action}</div>
+      h+=`<div class="sblock">
+        <div class="sblock-top">
+          <select class="s-select-full" onchange="onDrop('${cat}','${row.rowId}',this.value)"><option value="">Select product</option>${opts}</select>
+          ${canRem?`<button class="s-rem" onclick="remRow('${cat}','${row.rowId}')">×</button>`:''}
+        </div>
+        <div class="sblock-grid">
+          <div class="sb-cell"><div class="sb-lbl">Base</div><div class="s-base">${br!==null?'₹'+br:'—'}</div></div>
+          <div class="sb-cell"><div class="sb-lbl">Sell</div><input class="s-sell" type="number" id="sell-${row.rowId}" value="${sr!==''?sr:''}" placeholder="—" ${!p?'disabled':''} step="0.5" onchange="onSell('${cat}','${row.rowId}',this.value)"></div>
+          <div class="sb-cell"><div class="sb-lbl">Qty</div><input class="s-qty" type="number" id="qty-${row.rowId}" value="${qty}" min="0.01" step="0.01" ${!p?'disabled':''} onchange="onQty('${cat}','${row.rowId}',this.value)"></div>
+          <div class="sb-cell"><div class="sb-lbl">Total</div><div class="s-tot" id="tot-${row.rowId}">${tot!==''?'₹'+tot:'—'}</div></div>
+        </div>
       </div>`;
     });
-    if(CAT_MULTI.includes(cat)&&rows[cat].length>1)h+=`<button class="s-more" onclick="addRow('${cat}')">+ Add more</button>`;
+    if(CAT_MULTI.includes(cat))h+=`<button class="s-more" onclick="addRow('${cat}')">+ Add more</button>`;
     h+=`</div></div>`;
   });
   // summary
